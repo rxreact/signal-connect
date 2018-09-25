@@ -14,14 +14,14 @@ const connectFromFunction = <PrimarySignalsType, DerivedSignalsType, S, A>(
   mapOutputsToInputProps: (
     outputs: Output<PrimarySignalsType, DerivedSignalsType>
   ) => ObservableMap<S>,
-  mapInputsToOutputProps: (
+  mapInputsToOutputProps?: (
     inputs: <K1 extends keyof PrimarySignalsType>(key: K1) => SubjectMap<PrimarySignalsType>[K1]
   ) => SubjectMap<A>
 ): (<T extends S & ActionMap<A>>(
   WrappedComponent: React.ComponentType<T>
 ) => React.ComponentClass<Difference<T, S & ActionMap<A>>>) => {
   const inputs = mapOutputsToInputProps(signalGraph.output)
-  const outputs = mapInputsToOutputProps(signalGraph.input)
+  const outputs = mapInputsToOutputProps ? mapInputsToOutputProps(signalGraph.input) : undefined
   return withViewModel({ outputs, inputs })
 }
 

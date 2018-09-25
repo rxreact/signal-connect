@@ -173,8 +173,7 @@ describe('connect', () => {
       outputs => ({
         authStatus: outputs('authStatus$'),
         protectedResource: outputs('protected$')
-      }),
-      () => ({})
+      })
     )(ProtectedArea)
     const connectedAuth = shallow(<ConnectedProtectedArea />)
     const renderedAuth = connectedAuth.dive()
