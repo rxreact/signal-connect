@@ -1,6 +1,14 @@
 import { SignalGraph } from '@rxreact/signal'
-import { withViewModel, ObservableMap, SubjectMap, Difference, ActionMap } from '@rxreact/core'
+import {
+  withViewModel,
+  ObservableMap,
+  SubjectMap,
+  Difference,
+  ActionMap,
+  ViewModelFactory
+} from '@rxreact/core'
 import React from 'react'
+import { Observable } from 'rxjs'
 
 type Output<PrimarySignalsType, DerivedSignalsType> = {
   <K1 extends keyof PrimarySignalsType>(key: K1): ObservableMap<PrimarySignalsType>[K1]
@@ -9,20 +17,25 @@ type Output<PrimarySignalsType, DerivedSignalsType> = {
     | ObservableMap<PrimarySignalsType>[K1]
     | ObservableMap<DerivedSignalsType>[K2]
 }
-const connectFromFunction = <PrimarySignalsType, DerivedSignalsType, S, A>(
+const connectFromFunction = <PrimarySignalsType, DerivedSignalsType, S, A, P = {}>(
   signalGraph: SignalGraph<PrimarySignalsType, DerivedSignalsType>,
-  mapOutputsToInputProps: (
-    outputs: Output<PrimarySignalsType, DerivedSignalsType>
+  mapOutputsToProps: (
+    outputs: Output<PrimarySignalsType, DerivedSignalsType>,
+    ownProps: Observable<P>
   ) => ObservableMap<S>,
-  mapInputsToOutputProps?: (
-    inputs: <K1 extends keyof PrimarySignalsType>(key: K1) => SubjectMap<PrimarySignalsType>[K1]
+  mapInputsToProps?: (
+    inputs: <K1 extends keyof PrimarySignalsType>(key: K1) => SubjectMap<PrimarySignalsType>[K1],
+    ownProps: Observable<P>
   ) => SubjectMap<A>
-): (<T extends S & ActionMap<A>>(
+): (<T extends S & ActionMap<A> & P>(
   WrappedComponent: React.ComponentType<T>
-) => React.ComponentClass<Difference<T, S & ActionMap<A>>>) => {
-  const inputs = mapOutputsToInputProps(signalGraph.output)
-  const outputs = mapInputsToOutputProps ? mapInputsToOutputProps(signalGraph.input) : undefined
-  return withViewModel({ outputs, inputs })
+) => React.ComponentClass<Difference<T, S & ActionMap<A>> & P>) => {
+  const vmFactory: ViewModelFactory<S, A, P> = (props: Observable<P>) => {
+    const inputs = mapOutputsToProps(signalGraph.output, props)
+    const outputs = mapInputsToProps ? mapInputsToProps(signalGraph.input, props) : undefined
+    return { outputs, inputs }
+  }
+  return withViewModel<S, A, P>(vmFactory)
 }
 
 export const connect = connectFromFunction

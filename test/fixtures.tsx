@@ -122,6 +122,7 @@ export const LoginForm: React.SFC<{
 export const ProtectedArea: React.SFC<{
   authStatus: AuthStatus
   protectedResource: string
+  override: boolean
 }> = ({ authStatus, protectedResource }) => {
   return authStatus.status === 'authorized' ? (
     <div>{protectedResource}</div>

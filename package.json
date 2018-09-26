@@ -79,6 +79,10 @@
       "@commitlint/config-conventional"
     ]
   },
+  "dependencies": {
+    "@rxreact/signal": "0.0.0-development",
+    "@rxreact/core": "^5.1.0"
+  },
   "devDependencies": {
     "@commitlint/cli": "^7.0.0",
     "@commitlint/config-conventional": "^7.0.1",
@@ -86,8 +90,6 @@
     "@types/enzyme-adapter-react-16": "^1.0.3",
     "@types/jest": "^22.0.0",
     "@types/node": "^10.0.3",
-    "@rxreact/core": "^5.0.1",
-    "@rxreact/signal": "0.0.0-development",
     "@types/react": "^16.4.14",
     "colors": "^1.1.2",
     "commitizen": "^2.9.6",
