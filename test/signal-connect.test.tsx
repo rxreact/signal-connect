@@ -358,4 +358,174 @@ describe('connect', () => {
       expect(newRenderedAuth.text()).toContain(AUTH_RESOURCE)
     })
   })
+  describe('connecting with plain object outputs and function inputs', () => {
+    const { signalGraph, authResourceGraph } = makeGraphs()
+    const ConnectedComponent = connect(
+      signalGraph,
+      {
+        loginInProgress: 'loginInProgress$',
+        loginFailureMessage: 'loginFailureMessage$',
+        username: 'username$',
+        password: 'password$'
+      },
+      inputs => ({
+        usernameChanged: inputs('username$'),
+        passwordChanged: inputs('password$'),
+        submitButton: inputs('submitButton$')
+      })
+    )(LoginForm)
+    const connected = shallow(<ConnectedComponent />)
+    const rendered = connected.dive()
+
+    const ConnectedProtectedArea = connect(
+      authResourceGraph,
+      outputs => ({
+        authStatus: outputs('authStatus$'),
+        protectedResource: outputs('protected$')
+      })
+    )(ProtectedArea)
+    const connectedAuth = shallow(<ConnectedProtectedArea override={false} />)
+    const renderedAuth = connectedAuth.dive()
+
+    it('propogates properties correctly', async () => {
+      // simulate an incorrect login
+
+      rendered.find('#username').simulate('change', {
+        target: { value: 'incorrect user' },
+        preventDefault: () => undefined
+      })
+      rendered.find('#password').simulate('change', {
+        target: { value: 'incorrect password', preventDefault: () => undefined }
+      })
+      rendered.find('form').simulate('submit', { preventDefault: () => undefined })
+      // make sure login completes
+      await new Promise(resolve => {
+        signalGraph.output('loginResponses$').subscribe(() => {
+          resolve()
+        })
+      })
+      connected.update()
+      const newRendered = connected.dive()
+      // verify password update
+      expect(newRendered.text()).toContain('incorrect username/password')
+    })
+
+    it('renders props across connected graphs', async () => {
+      // auth area should start unauthorized
+      expect(renderedAuth.text()).toContain('Not authorized')
+
+      // simulate an correct login
+      rendered.find('#username').simulate('change', {
+        target: { value: CORRECT_USERNAME },
+        preventDefault: () => undefined
+      })
+      rendered.find('#password').simulate('change', {
+        target: { value: CORRECT_PASSWORD, preventDefault: () => undefined }
+      })
+      rendered.find('form').simulate('submit', { preventDefault: () => undefined })
+      // make sure login completes
+      await new Promise(resolve => {
+        signalGraph.output('loginResponses$').subscribe(() => {
+          resolve()
+        })
+      })
+      // make sure protected resource is fetched
+      await new Promise(resolve => {
+        authResourceGraph.output('protected$').subscribe(resource => {
+          if (resource === AUTH_RESOURCE) {
+            resolve()
+          }
+        })
+      })
+      connectedAuth.update()
+      const newRenderedAuth = connectedAuth.dive()
+      // verify password update
+      expect(newRenderedAuth.text()).toContain(AUTH_RESOURCE)
+    })
+  })
+  describe('connecting with funtion outputs and plain object inputs', () => {
+    const { signalGraph, authResourceGraph } = makeGraphs()
+    const ConnectedComponent = connect(
+      signalGraph,
+      outputs => ({
+        loginInProgress: outputs('loginInProgress$'),
+        loginFailureMessage: outputs('loginFailureMessage$'),
+        username: outputs('username$'),
+        password: outputs('password$')
+      }),
+      {
+        usernameChanged: 'username$',
+        passwordChanged: 'password$',
+        submitButton: 'submitButton$'
+      }
+    )(LoginForm)
+    const connected = shallow(<ConnectedComponent />)
+    const rendered = connected.dive()
+
+    const ConnectedProtectedArea = connect(
+      authResourceGraph,
+      outputs => ({
+        authStatus: outputs('authStatus$'),
+        protectedResource: outputs('protected$')
+      })
+    )(ProtectedArea)
+    const connectedAuth = shallow(<ConnectedProtectedArea override={false} />)
+    const renderedAuth = connectedAuth.dive()
+
+    it('propogates properties correctly', async () => {
+      // simulate an incorrect login
+
+      rendered.find('#username').simulate('change', {
+        target: { value: 'incorrect user' },
+        preventDefault: () => undefined
+      })
+      rendered.find('#password').simulate('change', {
+        target: { value: 'incorrect password', preventDefault: () => undefined }
+      })
+      rendered.find('form').simulate('submit', { preventDefault: () => undefined })
+      // make sure login completes
+      await new Promise(resolve => {
+        signalGraph.output('loginResponses$').subscribe(() => {
+          resolve()
+        })
+      })
+      connected.update()
+      const newRendered = connected.dive()
+      // verify password update
+      expect(newRendered.text()).toContain('incorrect username/password')
+    })
+
+    it('renders props across connected graphs', async () => {
+      // auth area should start unauthorized
+      expect(renderedAuth.text()).toContain('Not authorized')
+
+      // simulate an correct login
+      rendered.find('#username').simulate('change', {
+        target: { value: CORRECT_USERNAME },
+        preventDefault: () => undefined
+      })
+      rendered.find('#password').simulate('change', {
+        target: { value: CORRECT_PASSWORD, preventDefault: () => undefined }
+      })
+      rendered.find('form').simulate('submit', { preventDefault: () => undefined })
+      // make sure login completes
+      await new Promise(resolve => {
+        signalGraph.output('loginResponses$').subscribe(() => {
+          resolve()
+        })
+      })
+      // make sure protected resource is fetched
+      await new Promise(resolve => {
+        authResourceGraph.output('protected$').subscribe(resource => {
+          if (resource === AUTH_RESOURCE) {
+            resolve()
+          }
+        })
+      })
+      connectedAuth.update()
+      const newRenderedAuth = connectedAuth.dive()
+      // verify password update
+      expect(newRenderedAuth.text()).toContain(AUTH_RESOURCE)
+    })
+  })
 })

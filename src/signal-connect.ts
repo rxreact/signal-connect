@@ -55,9 +55,9 @@ const applyInputs = <PrimarySignalsType, KA extends KeyMap<PrimarySignalsType>>(
     {} as SubjectMap<VMap<PrimarySignalsType, KA>>
   )
 
-type ComponentEnhancer<S, A, P> = (<T extends S & ActionMap<A> & P>(
+type ComponentEnhancer<S, A, P = {}> = (<T extends S & ActionMap<A> & P>(
   WrappedComponent: React.ComponentType<T>
-) => React.ComponentClass<Difference<T, S & ActionMap<A> & P>>)
+) => React.ComponentClass<Difference<T, S & ActionMap<A>> & P>)
 
 type ConnectType = {
   <PrimarySignalsType, DerivedSignalsType, S, A, P = {}>(
@@ -110,31 +110,96 @@ type ConnectType = {
   ): ComponentEnhancer<VMap<PrimarySignalsType & DerivedSignalsType, KS>, A, P>
 }
 
-type VMFactoryFn = {
-  <S, A, P>(props: Observable<P>): ViewModel<S, A>
-  <PrimarySignalsType, S, KA extends KeyMap<PrimarySignalsType>, P>(
-    props: Observable<P>
-  ): ViewModel<S, VMap<PrimarySignalsType, KA>>
-  <
-    PrimarySignalsType,
-    DerivedSignalsType,
-    KS extends KeyMap<PrimarySignalsType & DerivedSignalsType>,
-    KA extends KeyMap<PrimarySignalsType>,
-    P
-  >(
-    props: Observable<P>
-  ): ViewModel<VMap<PrimarySignalsType & DerivedSignalsType, KS>, VMap<PrimarySignalsType, KA>>
-  <
-    PrimarySignalsType,
-    DerivedSignalsType,
-    KS extends KeyMap<PrimarySignalsType & DerivedSignalsType>,
-    A,
-    P
-  >(
-    props: Observable<P>
-  ): ViewModel<VMap<PrimarySignalsType & DerivedSignalsType, KS>, A>
+const connectSimple = <
+  PrimarySignalsType,
+  DerivedSignalsType,
+  KA extends KeyMap<PrimarySignalsType>,
+  KS extends KeyMap<PrimarySignalsType & DerivedSignalsType>
+>(
+  signalGraph: SignalGraph<PrimarySignalsType, DerivedSignalsType>,
+  mapOutputsToProps?: KS,
+  mapInputsToProps?: KA
+): ComponentEnhancer<
+  VMap<PrimarySignalsType & DerivedSignalsType, KS>,
+  VMap<PrimarySignalsType, KA>
+> => {
+  const inputs = mapOutputsToProps && applyOutputs(signalGraph.output, mapOutputsToProps)
+  const outputs = mapInputsToProps && applyInputs(signalGraph.input, mapInputsToProps)
+  const vm: ViewModel<
+    VMap<PrimarySignalsType & DerivedSignalsType, KS>,
+    VMap<PrimarySignalsType, KA>
+  > = { outputs, inputs }
+  return withViewModel(vm)
 }
-const connectFromFunction: ConnectType = <
+
+const connectWithOutputsFunc = <
+  PrimarySignalsType,
+  DerivedSignalsType,
+  KA extends KeyMap<PrimarySignalsType>,
+  S,
+  P = {}
+>(
+  signalGraph: SignalGraph<PrimarySignalsType, DerivedSignalsType>,
+  mapOutputsToProps?: ((
+    outputs: Output<PrimarySignalsType, DerivedSignalsType>,
+    ownProps: Observable<P>
+  ) => ObservableMap<S>),
+  mapInputsToProps?: KA
+): ComponentEnhancer<S, VMap<PrimarySignalsType, KA>, P> => {
+  const vmFactory: ViewModelFactory<S, VMap<PrimarySignalsType, KA>, P> = (
+    props: Observable<P>
+  ) => {
+    const inputs = mapOutputsToProps && mapOutputsToProps(signalGraph.output, props)
+    const outputs = mapInputsToProps && applyInputs(signalGraph.input, mapInputsToProps)
+    return { outputs, inputs }
+  }
+  return withViewModel(vmFactory)
+}
+
+const connectWithInputsFunc = <
+  PrimarySignalsType,
+  DerivedSignalsType,
+  KS extends KeyMap<PrimarySignalsType & DerivedSignalsType>,
+  A,
+  P = {}
+>(
+  signalGraph: SignalGraph<PrimarySignalsType, DerivedSignalsType>,
+  mapOutputsToProps?: KS,
+  mapInputsToProps?: ((
+    inputs: <K1 extends keyof PrimarySignalsType>(key: K1) => SubjectMap<PrimarySignalsType>[K1],
+    ownProps: Observable<P>
+  ) => SubjectMap<A>)
+): ComponentEnhancer<VMap<PrimarySignalsType & DerivedSignalsType, KS>, A, P> => {
+  const vmFactory: ViewModelFactory<VMap<PrimarySignalsType & DerivedSignalsType, KS>, A, P> = (
+    props: Observable<P>
+  ) => {
+    const inputs = mapOutputsToProps && applyOutputs(signalGraph.output, mapOutputsToProps)
+    const outputs = mapInputsToProps && mapInputsToProps(signalGraph.input, props)
+    return { outputs, inputs }
+  }
+  return withViewModel(vmFactory)
+}
+
+const connectWithBoth = <PrimarySignalsType, DerivedSignalsType, S, A, P = {}>(
+  signalGraph: SignalGraph<PrimarySignalsType, DerivedSignalsType>,
+  mapOutputsToProps?: ((
+    outputs: Output<PrimarySignalsType, DerivedSignalsType>,
+    ownProps: Observable<P>
+  ) => ObservableMap<S>),
+  mapInputsToProps?: ((
+    inputs: <K1 extends keyof PrimarySignalsType>(key: K1) => SubjectMap<PrimarySignalsType>[K1],
+    ownProps: Observable<P>
+  ) => SubjectMap<A>)
+): ComponentEnhancer<S, A, P> => {
+  const vmFactory: ViewModelFactory<S, A, P> = (props: Observable<P>) => {
+    const inputs = mapOutputsToProps && mapOutputsToProps(signalGraph.output, props)
+    const outputs = mapInputsToProps && mapInputsToProps(signalGraph.input, props)
+    return { outputs, inputs }
+  }
+  return withViewModel(vmFactory)
+}
+
+export const connect: ConnectType = <
   PrimarySignalsType,
   DerivedSignalsType,
   S,
@@ -158,35 +223,18 @@ const connectFromFunction: ConnectType = <
         ownProps: Observable<P>
       ) => SubjectMap<A>)
     | KA
-):
-  | ComponentEnhancer<S, A, P>
-  | ComponentEnhancer<S, VMap<PrimarySignalsType, KA>, P>
-  | ComponentEnhancer<
-      VMap<PrimarySignalsType & DerivedSignalsType, KS>,
-      VMap<PrimarySignalsType & DerivedSignalsType, KA>,
-      P
-    >
-  | ComponentEnhancer<VMap<PrimarySignalsType & DerivedSignalsType, KS>, A, P> => {
-  const vmFactory: VMFactoryFn = (props: Observable<P>) => {
-    const inputs =
-      typeof mapOutputsToProps === 'object'
-        ? applyOutputs(signalGraph.output, mapOutputsToProps)
-        : typeof mapOutputsToProps === 'function'
-          ? mapOutputsToProps(signalGraph.output, props)
-          : undefined
-    const outputs =
-      typeof mapInputsToProps === 'object'
-        ? applyInputs(signalGraph.input, mapInputsToProps)
-        : typeof mapInputsToProps === 'function'
-          ? mapInputsToProps(signalGraph.input, props)
-          : undefined
-    return { outputs, inputs }
+) => {
+  if (typeof mapInputsToProps === 'object') {
+    if (typeof mapOutputsToProps === 'object') {
+      return connectSimple(signalGraph, mapOutputsToProps, mapInputsToProps)
+    } else {
+      return connectWithOutputsFunc(signalGraph, mapOutputsToProps, mapInputsToProps)
+    }
+  } else {
+    if (typeof mapOutputsToProps === 'object') {
+      return connectWithInputsFunc(signalGraph, mapOutputsToProps, mapInputsToProps)
+    } else {
+      return connectWithBoth(signalGraph, mapOutputsToProps, mapInputsToProps)
+    }
   }
-  return withViewModel<
-    S | VMap<PrimarySignalsType & DerivedSignalsType, KS>,
-    A | VMap<PrimarySignalsType, KA>,
-    P
-  >(vmFactory)
 }
-
-export const connect = connectFromFunction
