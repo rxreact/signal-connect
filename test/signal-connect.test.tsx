@@ -20,86 +20,77 @@ import React from 'react'
 import { shallow } from 'enzyme'
 
 const makeGraphs = () => {
-  const signalGraph = new SignalGraphBuilder<
-    {
-      username$: string
-      password$: string
-      submitButton$: void
-      loginAttempts$: [void, string, string]
-      loginResponses$: LoginResponse
-      loginInProgress$: boolean
-      loginSuccesses$: LoginSuccess
-      loginFailures$: LoginFailure
-      loginFailureMessage$: string
-      authStatus$: AuthStatus
-    },
-    {
-      api: API
-    }
-  >()
+  const makeAuthStatus = map<LoginSuccess, AuthStatus>(({ data: { userToken } }: LoginSuccess) => ({
+    status: 'authorized',
+    token: userToken
+  }))
+
+  const makeLoginAttempts = (
+    submitButton$: Observable<void>,
+    username$: Observable<string>,
+    password$: Observable<string>
+  ) => submitButton$.pipe(withLatestFrom(username$, password$))
+  const makeLoginResponses = (loginAttempts$: Observable<[void, string, string]>, api: API) =>
+    loginAttempts$.pipe(flatMap(([_, username, password]) => api.login({ username, password })))
+  const makeLoginInProgress = (
+    loginAttempts$: Observable<[void, string, string]>,
+    loginResponses$: Observable<LoginResponse>
+  ) => merge(loginAttempts$.pipe(map(_ => true)), loginResponses$.pipe(map(_ => false)))
+
+  const makeLoginSuccesses = filter(
+    (loginResponse: LoginResponse): loginResponse is LoginSuccess =>
+      loginResponse.status === 'success'
+  )
+
+  const makeLoginFailures = filter(
+    (loginResponse: LoginResponse): loginResponse is LoginFailure =>
+      loginResponse.status === 'failure'
+  )
+
+  const makeLoginFailureMessage = (
+    loginAttempts$: Observable<[void, string, string]>,
+    loginFailures$: Observable<LoginFailure>
+  ) =>
+    merge(
+      loginAttempts$.pipe(map(_ => '')),
+      loginFailures$.pipe(map(({ error: { message } }) => message))
+    )
+
+  type SignalsType = {
+    username$: string
+    password$: string
+    submitButton$: void
+    loginAttempts$: [void, string, string]
+    loginResponses$: LoginResponse
+    loginInProgress$: boolean
+    loginSuccesses$: LoginSuccess
+    loginFailures$: LoginFailure
+    loginFailureMessage$: string
+    authStatus$: AuthStatus
+  }
+
+  type Dependencies = {
+    api: API
+  }
+
+  const signalGraph = new SignalGraphBuilder<SignalsType, Dependencies>()
     .define(addPrimary('username$'))
     .define(
       addPrimary('password$'),
       addPrimary('submitButton$'),
       addDependency('api', api),
-      addDerived(
-        'loginAttempts$',
-        (submitButton$, username$, password$) =>
-          submitButton$.pipe(withLatestFrom(username$, password$)),
-        'submitButton$',
-        'username$',
-        'password$'
-      ),
-      addDerived(
-        'loginResponses$',
-        (loginAttempts$, api) =>
-          loginAttempts$.pipe(
-            flatMap(([_, username, password]) => api.login({ username, password }))
-          ),
-        'loginAttempts$',
-        'api'
-      ),
-      addDerived(
-        'loginInProgress$',
-        (loginAttempts$, loginResponses$) =>
-          merge(loginAttempts$.pipe(map(_ => true)), loginResponses$.pipe(map(_ => false))),
-        'loginAttempts$',
-        'loginResponses$'
-      ),
-      addDerived(
-        'loginSuccesses$',
-        filter(
-          (loginResponse: LoginResponse): loginResponse is LoginSuccess =>
-            loginResponse.status === 'success'
-        ),
-        'loginResponses$'
-      ),
-      addDerived(
-        'loginFailures$',
-        filter(
-          (loginResponse: LoginResponse): loginResponse is LoginFailure =>
-            loginResponse.status === 'failure'
-        ),
-        'loginResponses$'
-      ),
+      addDerived('loginAttempts$', makeLoginAttempts, 'submitButton$', 'username$', 'password$'),
+      addDerived('loginResponses$', makeLoginResponses, 'loginAttempts$', 'api'),
+      addDerived('loginInProgress$', makeLoginInProgress, 'loginAttempts$', 'loginResponses$'),
+      addDerived('loginSuccesses$', makeLoginSuccesses, 'loginResponses$'),
+      addDerived('loginFailures$', makeLoginFailures, 'loginResponses$'),
       addDerived(
         'loginFailureMessage$',
-        (loginAttempts$, loginFailures$) =>
-          merge(
-            loginAttempts$.pipe(map(_ => '')),
-            loginFailures$.pipe(map(({ error: { message } }) => message))
-          ),
+        makeLoginFailureMessage,
         'loginAttempts$',
         'loginFailures$'
       ),
-      addDerived(
-        'authStatus$',
-        map<LoginSuccess, AuthStatus>(({ data: { userToken } }: LoginSuccess) => ({
-          status: 'authorized',
-          token: userToken
-        })),
-        'loginSuccesses$'
-      )
+      addDerived('authStatus$', makeAuthStatus, 'loginSuccesses$')
     )
     .initializeWith({
       loginInProgress$: false,
@@ -109,6 +100,16 @@ const makeGraphs = () => {
       authStatus$: { status: 'unauthorized' }
     })
     .build()
+
+  const makeProtected = (userToken$: Observable<string>, api: API) =>
+    userToken$.pipe(flatMap(userToken => api.protectedResource.get(userToken)))
+
+  const makeUserToken = pipe(
+    filter(
+      (authStatus: AuthStatus): authStatus is Authorized => authStatus.status === 'authorized'
+    ),
+    map(authorized => authorized.token)
+  )
 
   const authResourceGraph = new SignalGraphBuilder<
     {
@@ -120,24 +121,9 @@ const makeGraphs = () => {
   >()
     .define(
       addPrimary('authStatus$'),
-      addDerived(
-        'userToken$',
-        pipe(
-          filter(
-            (authStatus: AuthStatus): authStatus is Authorized => authStatus.status === 'authorized'
-          ),
-          map(authorized => authorized.token)
-        ),
-        'authStatus$'
-      ),
+      addDerived('userToken$', makeUserToken, 'authStatus$'),
       addDependency('api', api),
-      addDerived(
-        'protected$',
-        (userToken$, api) =>
-          userToken$.pipe(flatMap(userToken => api.protectedResource.get(userToken))),
-        'userToken$',
-        'api'
-      )
+      addDerived('protected$', makeProtected, 'userToken$', 'api')
     )
     .initializeWith({
       protected$: ''
