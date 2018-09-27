@@ -81,7 +81,7 @@
     ]
   },
   "dependencies": {
-    "@rxreact/signal": "1.0.1",
+    "@rxreact/signal": "1.0.2",
     "@rxreact/core": "^5.1.0"
   },
   "devDependencies": {
