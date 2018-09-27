@@ -1,7 +1,7 @@
 # TypeScript library starter
 
 [![styled with prettier](https://img.shields.io/badge/styled_with-prettier-ff69b4.svg)](https://github.com/prettier/prettier)
-[![Greenkeeper badge](https://badges.greenkeeper.io/alexjoverm/typescript-library-starter.svg)](https://greenkeeper.io/)
+[![Greenkeeper badge](https://badges.greenkeeper.io/rxreact/signal-connect.svg)](https://greenkeeper.io/)
 [![Build Status](https://travis-ci.org/rxreact/signal-connect.svg?branch=master)](https://travis-ci.org/rxreact/signal-connect)
 [![Coverage Status](https://coveralls.io/repos/github/rxreact/signal-connect/badge.svg?branch=master)](https://coveralls.io/github/rxreact/signal-connect?branch=master)
 
