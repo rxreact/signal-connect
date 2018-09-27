@@ -9,7 +9,7 @@ import {
   ViewModel
 } from '@rxreact/core'
 import React from 'react'
-import { Observable, Subject } from 'rxjs'
+import { Observable } from 'rxjs'
 
 type Output<PrimarySignalsType, DerivedSignalsType> = {
   <K1 extends keyof PrimarySignalsType>(key: K1): ObservableMap<PrimarySignalsType>[K1]
