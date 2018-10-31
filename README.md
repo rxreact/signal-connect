@@ -24,7 +24,7 @@ or
 yarn add @rxreact/signal-connect
 ```
 
-RxJS and React are peer dependencies and need to be installed seperately
+RxJS and React are peer dependencies and need to be installed separately
 
 ## Usage
 
